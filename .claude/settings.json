@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "fencepost bash || true"
+            "command": "FENCEPOST_RULES_OFF=\"$FENCEPOST_RULES_OFF\" fencepost bash || true"
           }
         ]
       },
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "fencepost edit || true"
+            "command": "FENCEPOST_RULES_OFF=\"$FENCEPOST_RULES_OFF\" fencepost edit || true"
           }
         ]
       }
