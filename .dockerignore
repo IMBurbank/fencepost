@@ -1,0 +1,6 @@
+target/
+.git/
+*.swp
+*.swo
+docker-compose.override.yml
+guard-transfer.md

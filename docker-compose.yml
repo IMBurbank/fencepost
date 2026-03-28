@@ -1,0 +1,21 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fencepost-dev
+    volumes:
+      - .:/workspace
+      - cargo-cache:/home/dev/.cargo/registry
+      - target-cache:/workspace/target
+    working_dir: /workspace
+    environment:
+      - CARGO_HOME=/home/dev/.cargo
+      - ANTHROPIC_API_KEY
+      - CLAUDE_CLI_FLAGS
+    stdin_open: true
+    tty: true
+
+volumes:
+  cargo-cache:
+  target-cache:

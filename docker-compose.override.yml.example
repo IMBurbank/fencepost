@@ -1,0 +1,11 @@
+# Copy to docker-compose.override.yml and uncomment what you need.
+# docker-compose.override.yml is gitignored — safe for local secrets.
+
+services:
+  dev:
+    volumes:
+      # Git identity (read-only)
+      - ~/.gitconfig:/home/dev/.gitconfig:ro
+      - ~/.ssh:/home/dev/.ssh:ro
+      ## Shared Claude config (read-only)
+      # - ~/.claude/CLAUDE.md:/home/dev/.claude/CLAUDE.md:ro

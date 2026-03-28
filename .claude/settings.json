@@ -1,0 +1,36 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh 2>/dev/null"
+  },
+  "permissions": {
+    "allow": []
+  },
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fencepost bash || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fencepost edit || true"
+          }
+        ]
+      }
+    ]
+  }
+}

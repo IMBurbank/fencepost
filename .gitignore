@@ -1,0 +1,5 @@
+target/
+docker-compose.override.yml
+guard-transfer.md
+*.bak.*
+.DS_Store
