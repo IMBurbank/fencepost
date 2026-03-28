@@ -127,36 +127,50 @@ pub(crate) fn glob_match(pattern: &str, name: &str) -> bool {
 /// }
 /// ```
 /// Load fencepost config. Resolution order:
+/// Load fencepost config. Resolution order:
 /// 1. `FENCEPOST_CONFIG` env var (absolute or relative to root)
-/// 2. Default: `{root}/.claude/fencepost.json`
+/// 2. `{root}/.fencepost.json` (primary — framework-agnostic dotfile)
+/// 3. `{root}/.claude/fencepost.json` (legacy fallback)
 ///
-/// FROZEN CONVENTION: the default path `.claude/fencepost.json` is used by every
-/// project that adopts fencepost. Do not change this default without a migration
-/// strategy for all consuming projects. See config_v1_frozen_contract test.
+/// FROZEN CONVENTION: both `.fencepost.json` and `.claude/fencepost.json` are
+/// supported paths. Do not remove the fallback without a major version bump.
 pub(crate) fn load_config(root: &Path) -> Option<serde_json::Value> {
-    let config_path = if let Ok(custom) = std::env::var("FENCEPOST_CONFIG") {
-        let p = std::path::Path::new(&custom);
-        if p.is_absolute() {
-            p.to_path_buf()
+    // 1. Explicit env var override
+    if let Ok(custom) = std::env::var("FENCEPOST_CONFIG") {
+        let config_path = if std::path::Path::new(&custom).is_absolute() {
+            std::path::PathBuf::from(&custom)
         } else {
             root.join(&custom)
-        }
-    } else {
-        root.join(".claude/fencepost.json")
-    };
-    let from_env = std::env::var("FENCEPOST_CONFIG").is_ok();
-    match std::fs::read_to_string(&config_path) {
-        Ok(contents) => serde_json::from_str(&contents).ok(),
-        Err(_) if from_env => {
-            // User explicitly set FENCEPOST_CONFIG but file doesn't exist — warn loudly
-            eprintln!(
-                "fencepost: FENCEPOST_CONFIG={} not found — using defaults",
-                config_path.display()
-            );
-            None
-        }
-        Err(_) => None, // Default path not found — normal, use defaults silently
+        };
+        return match std::fs::read_to_string(&config_path) {
+            Ok(contents) => serde_json::from_str(&contents).ok(),
+            Err(_) => {
+                eprintln!(
+                    "fencepost: FENCEPOST_CONFIG={} not found — using defaults",
+                    config_path.display()
+                );
+                None
+            }
+        };
     }
+
+    // 2. Primary: .fencepost.json at project root
+    let primary = root.join(".fencepost.json");
+    if let Ok(contents) = std::fs::read_to_string(&primary) {
+        return serde_json::from_str(&contents).ok();
+    }
+
+    // 3. Legacy fallback: .claude/fencepost.json
+    let legacy = root.join(".claude/fencepost.json");
+    if let Ok(contents) = std::fs::read_to_string(&legacy) {
+        eprintln!(
+            "fencepost: using legacy config path .claude/fencepost.json — \
+             consider moving to .fencepost.json at project root"
+        );
+        return serde_json::from_str(&contents).ok();
+    }
+
+    None
 }
 
 /// Parse protected file patterns from config JSON.

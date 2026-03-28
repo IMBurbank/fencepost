@@ -4,10 +4,9 @@ target/
 # Docker
 docker-compose.override.yml
 
-# Claude Code — keep settings.json and fencepost.json, ignore everything else
+# Claude Code — keep settings.json, ignore everything else
 .claude/*
 !.claude/settings.json
-!.claude/fencepost.json
 
 # Transfer/session artifacts
 guard-transfer*.md

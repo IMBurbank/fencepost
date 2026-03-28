@@ -221,10 +221,13 @@ fn init() {
         true
     };
 
-    // Create .claude/fencepost.json if stack-specific patterns were detected
-    let config_path = claude_dir.join("fencepost.json");
+    // Create .fencepost.json at project root (check both paths for existing)
+    let config_path = root.join(".fencepost.json");
+    let legacy_config = root.join(".claude/fencepost.json");
     if config_path.exists() {
-        println!("  Config: .claude/fencepost.json already exists ✓");
+        println!("  Config: .fencepost.json already exists ✓");
+    } else if legacy_config.exists() {
+        println!("  Config: .claude/fencepost.json exists (consider moving to .fencepost.json)");
     } else if !extra_patterns.is_empty() {
         let config = serde_json::json!({
             "version": 1,
@@ -234,7 +237,7 @@ fn init() {
         let pretty = serde_json::to_string_pretty(&config).unwrap();
         fs::write(&config_path, format!("{}\n", pretty)).unwrap();
         println!(
-            "  Config: created .claude/fencepost.json with {} project-specific pattern(s) ✓",
+            "  Config: created .fencepost.json with {} project-specific pattern(s) ✓",
             extra_patterns.len()
         );
     } else {
@@ -295,14 +298,20 @@ fn doctor() {
         Some(ctx) => {
             println!("{} ✓", ctx.root().display());
 
-            // Check config file for field-level provenance
+            // Check config file for field-level provenance (try both paths)
             let config_has = |field: &str| -> bool {
-                ctx.root().join(".claude/fencepost.json").exists()
-                    && std::fs::read_to_string(ctx.root().join(".claude/fencepost.json"))
-                        .ok()
-                        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-                        .and_then(|v| v.get(field).cloned())
-                        .is_some()
+                let paths = [
+                    ctx.root().join(".fencepost.json"),
+                    ctx.root().join(".claude/fencepost.json"),
+                ];
+                paths.iter().any(|p| {
+                    p.exists()
+                        && std::fs::read_to_string(p)
+                            .ok()
+                            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                            .and_then(|v| v.get(field).cloned())
+                            .is_some()
+                })
             };
 
             print!("  default branch: ");
@@ -365,27 +374,34 @@ fn doctor() {
                 }
             }
 
-            // Check config file
+            // Check config file (primary .fencepost.json, legacy .claude/fencepost.json)
             print!("  config: ");
-            let config_path = ctx.root().join(".claude/fencepost.json");
-            if config_path.exists() {
-                match std::fs::read_to_string(&config_path) {
+            let primary_config = ctx.root().join(".fencepost.json");
+            let legacy_config = ctx.root().join(".claude/fencepost.json");
+            let config_found = if primary_config.exists() {
+                match std::fs::read_to_string(&primary_config) {
                     Ok(contents) => match serde_json::from_str::<serde_json::Value>(&contents) {
-                        Ok(_) => println!(".claude/fencepost.json ✓"),
+                        Ok(_) => { println!(".fencepost.json ✓"); true }
                         Err(e) => {
-                            println!(".claude/fencepost.json INVALID ✗");
+                            println!(".fencepost.json INVALID ✗");
                             eprintln!("    Parse error: {}", e);
-                            ok = false;
+                            ok = false; true
                         }
                     },
                     Err(e) => {
-                        println!(".claude/fencepost.json UNREADABLE ✗");
+                        println!(".fencepost.json UNREADABLE ✗");
                         eprintln!("    {}", e);
-                        ok = false;
+                        ok = false; true
                     }
                 }
+            } else if legacy_config.exists() {
+                println!(".claude/fencepost.json (legacy path — consider moving to .fencepost.json)");
+                true
             } else {
-                println!("using defaults (no .claude/fencepost.json)");
+                false
+            };
+            if !config_found {
+                println!("using defaults (no .fencepost.json)");
             }
 
             // Show config warnings (unknown fields, invalid rule names, etc.)

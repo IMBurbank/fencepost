@@ -59,9 +59,8 @@ fn list_rules_descriptions_not_empty() {
 fn config_malformed_json_uses_defaults() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
-    std::fs::create_dir_all(tmp.path().join(".claude")).unwrap();
     std::fs::write(
-        tmp.path().join(".claude/fencepost.json"),
+        tmp.path().join(".fencepost.json"),
         "{this is not valid json!!!",
     )
     .unwrap();
@@ -77,7 +76,7 @@ fn config_malformed_json_uses_defaults() {
 fn config_no_file_uses_defaults() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
-    // No .claude/fencepost.json — should use defaults without error
+    // No .fencepost.json — should use defaults without error
     let root = find_project_root(tmp.path()).unwrap();
     let ctx = ProjectContext::from_root_and_cwd(root, tmp.path().to_path_buf());
     assert_eq!(ctx.default_branch(), "main");
@@ -89,9 +88,8 @@ fn config_custom_protected_patterns_via_check() {
     // Create a project with a custom fencepost.json that protects *.lock files
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
-    std::fs::create_dir_all(tmp.path().join(".claude")).unwrap();
     std::fs::write(
-        tmp.path().join(".claude/fencepost.json"),
+        tmp.path().join(".fencepost.json"),
         r#"{"protected_files": [{"glob": "*.lock", "reason": "Lock files are generated"}]}"#,
     )
     .unwrap();
@@ -150,8 +148,7 @@ fn config_v1_frozen_contract() {
     // Create a project with a complete v1 config
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(tmp.path().join(".git")).unwrap();
-    std::fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    std::fs::write(tmp.path().join(".claude/fencepost.json"), V1_CONFIG).unwrap();
+    std::fs::write(tmp.path().join(".fencepost.json"), V1_CONFIG).unwrap();
 
     // detect() must parse every v1 field correctly
     // We can't call detect() (uses real CWD), so test via the parsing functions directly.

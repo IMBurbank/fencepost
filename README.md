@@ -52,7 +52,7 @@ FENCEPOST_LOG=debug echo '{"tool_input":{"command":"git push origin main"}}' | f
 
 ## Configuration
 
-Create `.claude/fencepost.json` in your project root. All fields are optional — omitted fields use auto-detection.
+Create `.fencepost.json` in your project root. All fields are optional — omitted fields use auto-detection.
 
 ```json
 {
