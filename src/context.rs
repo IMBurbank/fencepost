@@ -404,6 +404,18 @@ impl ProjectContext {
             }
         }
 
+        // Override file: .fencepost-override at project root (gitignored, temporary)
+        // One rule name per line. Lines starting with # are comments.
+        let override_path = root.join(".fencepost-override");
+        if let Ok(contents) = std::fs::read_to_string(&override_path) {
+            for line in contents.lines() {
+                let name = line.trim();
+                if !name.is_empty() && !name.starts_with('#') {
+                    rule_overrides.insert(name.to_string(), crate::rule::Severity::Off);
+                }
+            }
+        }
+
         Some(Self {
             root,
             worktrees_dir,

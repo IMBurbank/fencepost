@@ -30,7 +30,7 @@ FENCEPOST_LOG=debug fencepost bash   # Debug trace on stderr
 ## Critical conventions
 
 ### Frozen interfaces — do NOT change without migration
-- Config path: `.claude/fencepost.json` (FROZEN CONVENTION comment in context.rs)
+- Config path: `.fencepost.json` at project root (legacy `.claude/fencepost.json` also supported)
 - Config schema v1 fields (frozen contract test in tests/cli.rs)
 - Hook subcommands: `fencepost edit`, `fencepost bash` (FROZEN CONVENTION in main.rs)
 - Default protocol: `claude`

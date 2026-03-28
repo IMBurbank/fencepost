@@ -8,6 +8,9 @@ docker-compose.override.yml
 .claude/*
 !.claude/settings.json
 
+# Fencepost temporary override (see .fencepost-override.example)
+.fencepost-override
+
 # Transfer/session artifacts
 guard-transfer*.md
 *.bak.*

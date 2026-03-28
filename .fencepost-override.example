@@ -1,0 +1,19 @@
+# Temporarily disable fencepost rules.
+# Copy to .fencepost-override (gitignored) and uncomment rules to disable.
+# Delete when done — leaving this file active disables protections.
+#
+# One rule name per line. Run `fencepost list-rules` for all names.
+#
+# push-to-default-branch
+# checkout-switch
+# reset-hard
+# clean-force
+# branch-force-delete
+# worktree-remove
+# rm-worktree-root
+# sed-tee-protected-path
+# interpreter-write
+# redirect-to-protected-path
+# protected-file-pattern
+# workspace-isolation
+# cwd-enforcement
