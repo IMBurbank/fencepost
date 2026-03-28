@@ -606,11 +606,19 @@ impl ProjectContext {
 
     // -- Block messages (dynamically interpolate project paths) --
 
+    /// Reference to project-specific worktree documentation, if it exists.
+    /// Returns empty string if no docs file found — messages stay self-contained
+    /// for projects that don't have worktree documentation.
     pub fn msg_worktree_docs(&self) -> String {
-        format!(
-            "See {}/.claude/worktrees/CLAUDE.md for the full cleanup procedure.",
-            self.root.display()
-        )
+        let docs_path = self.worktrees_dir.join("CLAUDE.md");
+        if docs_path.exists() {
+            format!(
+                " See {}/.claude/worktrees/CLAUDE.md for details.",
+                self.root.display()
+            )
+        } else {
+            String::new()
+        }
     }
 }
 
@@ -1050,9 +1058,24 @@ mod tests {
     }
 
     #[test]
-    fn ctx_msg_worktree_docs_uses_root_path() {
-        let ctx = ProjectContext::from_root(PathBuf::from("/my/project"));
-        assert!(ctx.msg_worktree_docs().contains("/my/project"));
+    fn ctx_msg_worktree_docs_empty_when_no_file() {
+        let ctx = ProjectContext::from_root(PathBuf::from("/nonexistent/project"));
+        assert!(ctx.msg_worktree_docs().is_empty());
+    }
+
+    #[test]
+    fn ctx_msg_worktree_docs_includes_path_when_file_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        let wt_dir = tmp.path().join(".claude/worktrees");
+        std::fs::create_dir_all(&wt_dir).unwrap();
+        std::fs::write(wt_dir.join("CLAUDE.md"), "docs").unwrap();
+        let ctx = ProjectContext::from_root_and_cwd(
+            tmp.path().to_path_buf(),
+            tmp.path().to_path_buf(),
+        );
+        let msg = ctx.msg_worktree_docs();
+        assert!(!msg.is_empty());
+        assert!(msg.contains("CLAUDE.md"));
     }
 
     // ================================================================
