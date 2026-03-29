@@ -381,21 +381,28 @@ fn doctor() {
             let config_found = if primary_config.exists() {
                 match std::fs::read_to_string(&primary_config) {
                     Ok(contents) => match serde_json::from_str::<serde_json::Value>(&contents) {
-                        Ok(_) => { println!(".fencepost.json ✓"); true }
+                        Ok(_) => {
+                            println!(".fencepost.json ✓");
+                            true
+                        }
                         Err(e) => {
                             println!(".fencepost.json INVALID ✗");
                             eprintln!("    Parse error: {}", e);
-                            ok = false; true
+                            ok = false;
+                            true
                         }
                     },
                     Err(e) => {
                         println!(".fencepost.json UNREADABLE ✗");
                         eprintln!("    {}", e);
-                        ok = false; true
+                        ok = false;
+                        true
                     }
                 }
             } else if legacy_config.exists() {
-                println!(".claude/fencepost.json (legacy path — consider moving to .fencepost.json)");
+                println!(
+                    ".claude/fencepost.json (legacy path — consider moving to .fencepost.json)"
+                );
                 true
             } else {
                 false
