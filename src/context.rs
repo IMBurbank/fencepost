@@ -1095,10 +1095,8 @@ mod tests {
         let wt_dir = tmp.path().join(".claude/worktrees");
         std::fs::create_dir_all(&wt_dir).unwrap();
         std::fs::write(wt_dir.join("CLAUDE.md"), "docs").unwrap();
-        let ctx = ProjectContext::from_root_and_cwd(
-            tmp.path().to_path_buf(),
-            tmp.path().to_path_buf(),
-        );
+        let ctx =
+            ProjectContext::from_root_and_cwd(tmp.path().to_path_buf(), tmp.path().to_path_buf());
         let msg = ctx.msg_worktree_docs();
         assert!(!msg.is_empty());
         assert!(msg.contains("CLAUDE.md"));

@@ -227,7 +227,7 @@ fn config_v1_frozen_contract() {
 
     // Verify that ALL fields in V1_CONFIG are in the known fields list
     // (if this fails, a field was added to the test but not to KNOWN_FIELDS)
-    let known = vec![
+    let known = [
         "version",
         "protocol",
         "default_branch",

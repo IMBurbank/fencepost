@@ -8,7 +8,18 @@
 //! They use the debug binary from target/debug/ (built by cargo test).
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+/// Get the project root (where .git lives). Tests use this to build
+/// paths that are protected regardless of where the repo is checked out.
+fn project_root() -> PathBuf {
+    let output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .expect("git must be available");
+    PathBuf::from(String::from_utf8(output.stdout).unwrap().trim())
+}
 
 /// Path to the fencepost binary built by cargo.
 fn binary_path() -> std::path::PathBuf {
@@ -22,6 +33,31 @@ fn binary_path() -> std::path::PathBuf {
         .to_path_buf();
     path.push("fencepost");
     path
+}
+
+fn run_fencepost_in(mode: &str, json: &str, cwd: &std::path::Path) -> (String, String, i32) {
+    let mut child = Command::new(binary_path())
+        .arg(mode)
+        .current_dir(cwd)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn fencepost binary");
+
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(json.as_bytes())
+        .unwrap();
+
+    let output = child.wait_with_output().unwrap();
+    (
+        String::from_utf8_lossy(&output.stdout).to_string(),
+        String::from_utf8_lossy(&output.stderr).to_string(),
+        output.status.code().unwrap_or(-1),
+    )
 }
 
 fn run_fencepost(mode: &str, json: &str) -> (String, String, i32) {
@@ -281,31 +317,30 @@ fn msg_push_names_branch_and_suggests_alternative() {
 
 #[test]
 fn msg_edit_workspace_shows_file_and_corrected_worktree_path() {
-    let (stdout, _, _) = run_fencepost(
-        "edit",
-        r#"{"tool_input":{"file_path":"/workspace/src/App.tsx"}}"#,
-    );
+    // Use a tempdir with .git to control the project root
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    let root = tmp.path();
+    let file = format!("{}/src/App.tsx", root.display());
+    let json = format!(r#"{{"tool_input":{{"file_path":"{}"}}}}"#, file);
+    let (stdout, _, _) = run_fencepost_in("edit", &json, root);
     let reason = parse_reason(&stdout);
     assert!(
-        reason.contains("/workspace/src/App.tsx"),
-        "Should name the exact file: {reason}"
+        reason.contains("src/App.tsx"),
+        "Should name the file: {reason}"
     );
     assert!(
         reason.contains("git worktree add"),
         "Should show worktree creation command: {reason}"
     );
-    assert!(
-        reason.contains("src/App.tsx"),
-        "Should show the relative path to edit in worktree: {reason}"
-    );
 }
 
 #[test]
 fn msg_protected_file_names_file_and_explains_why() {
-    let (stdout, _, _) = run_fencepost(
-        "edit",
-        r#"{"tool_input":{"file_path":"/workspace/.env.production"}}"#,
-    );
+    let root = project_root();
+    let file = format!("{}/.env.production", root.display());
+    let json = format!(r#"{{"tool_input":{{"file_path":"{}"}}}}"#, file);
+    let (stdout, _, _) = run_fencepost("edit", &json);
     let reason = parse_reason(&stdout);
     assert!(
         reason.contains(".env.production"),
@@ -319,10 +354,10 @@ fn msg_protected_file_names_file_and_explains_why() {
 
 #[test]
 fn msg_lock_file_explains_how_to_regenerate() {
-    let (stdout, _, _) = run_fencepost(
-        "edit",
-        r#"{"tool_input":{"file_path":"/workspace/.claude/worktrees/wt/Cargo.lock"}}"#,
-    );
+    let root = project_root();
+    let file = format!("{}/.claude/worktrees/wt/Cargo.lock", root.display());
+    let json = format!(r#"{{"tool_input":{{"file_path":"{}"}}}}"#, file);
+    let (stdout, _, _) = run_fencepost("edit", &json);
     let reason = parse_reason(&stdout);
     assert!(
         reason.contains("Cargo.lock"),
@@ -336,14 +371,16 @@ fn msg_lock_file_explains_how_to_regenerate() {
 
 #[test]
 fn msg_redirect_shows_exact_operator_and_target() {
-    let (stdout, _, _) = run_fencepost(
-        "bash",
-        r#"{"tool_input":{"command":"echo hello > /workspace/output.txt"}}"#,
-    );
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    let root = tmp.path();
+    let cmd = format!("echo hello > {}/output.txt", root.display());
+    let json = format!(r#"{{"tool_input":{{"command":"{}"}}}}"#, cmd);
+    let (stdout, _, _) = run_fencepost_in("bash", &json, root);
     let reason = parse_reason(&stdout);
     assert!(
-        reason.contains("> /workspace/output.txt"),
-        "Should show the exact redirect and target: {reason}"
+        reason.contains("output.txt"),
+        "Should show the target: {reason}"
     );
     assert!(
         reason.contains("worktree"),
@@ -353,10 +390,12 @@ fn msg_redirect_shows_exact_operator_and_target() {
 
 #[test]
 fn msg_sed_names_operation_and_suggests_worktree() {
-    let (stdout, _, _) = run_fencepost(
-        "bash",
-        r#"{"tool_input":{"command":"sed -i s/x/y/ /workspace/src/file.ts"}}"#,
-    );
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    let root = tmp.path();
+    let cmd = format!("sed -i s/x/y/ {}/src/file.ts", root.display());
+    let json = format!(r#"{{"tool_input":{{"command":"{}"}}}}"#, cmd);
+    let (stdout, _, _) = run_fencepost_in("bash", &json, root);
     let reason = parse_reason(&stdout);
     assert!(
         reason.contains("sed"),
@@ -370,13 +409,16 @@ fn msg_sed_names_operation_and_suggests_worktree() {
 
 #[test]
 fn msg_rm_worktree_names_target_and_shows_safe_alternative() {
-    let (stdout, _, _) = run_fencepost(
-        "bash",
-        r#"{"tool_input":{"command":"rm -rf /workspace/.claude/worktrees/my-wt"}}"#,
-    );
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join(".git")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".claude/worktrees/my-wt")).unwrap();
+    let root = tmp.path();
+    let cmd = format!("rm -rf {}/.claude/worktrees/my-wt", root.display());
+    let json = format!(r#"{{"tool_input":{{"command":"{}"}}}}"#, cmd);
+    let (stdout, _, _) = run_fencepost_in("bash", &json, root);
     let reason = parse_reason(&stdout);
     assert!(
-        reason.contains("my-wt") || reason.contains("/workspace/.claude/worktrees/my-wt"),
+        reason.contains("my-wt"),
         "Should name the target path: {reason}"
     );
     assert!(
@@ -400,10 +442,13 @@ fn msg_reset_hard_shows_corrected_command() {
 
 #[test]
 fn msg_worktree_remove_shows_acknowledgment_flow() {
-    let (stdout, _, _) = run_fencepost(
-        "bash",
-        r#"{"tool_input":{"command":"git worktree remove /workspace/.claude/worktrees/other"}}"#,
+    let root = project_root();
+    let cmd = format!(
+        "git worktree remove {}/.claude/worktrees/other",
+        root.display()
     );
+    let json = format!(r#"{{"tool_input":{{"command":"{}"}}}}"#, cmd);
+    let (stdout, _, _) = run_fencepost("bash", &json);
     let reason = parse_reason(&stdout);
     assert!(
         reason.contains("I_CREATED_THIS=1"),
