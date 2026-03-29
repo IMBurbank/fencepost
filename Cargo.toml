@@ -9,7 +9,7 @@ homepage = "https://github.com/IMBurbank/fencepost"
 keywords = ["claude-code", "hooks", "guard", "agent", "workflow"]
 categories = ["command-line-utilities", "development-tools"]
 readme = "README.md"
-rust-version = "1.70"
+rust-version = "1.71"
 
 [lib]
 name = "fencepost"
